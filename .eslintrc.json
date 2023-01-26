@@ -2,11 +2,12 @@
     "env": {
         "browser": true,
         "commonjs": true,
-        "es2021": true
+        "es2021": true,
     },
     "extends": "standard",
     "overrides": [
     ],
+    "plugins": ["jest"],
     "parserOptions": {
         "ecmaVersion": "latest"
     },
