@@ -1,31 +1,35 @@
 const { Router } = require("express");
 const { getProfile } = require("../middleware/getProfile");
-const { Contract, Job } = require("../repos/model");
+const { Contract } = require("../repos/model");
 const router = Router();
-const { Op, transaction } = require("sequelize");
+const { Op } = require("sequelize");
+const { mapMoneyDecimals } = require("../utils");
 
 /**
- * Get all unpaid jobs for a user
+ * Get all unpaid jobs for a user (***either*** a client or contractor), for ***active contracts only***.
  * @returns unpaid Jobs
  */
 router.get("/unpaid", getProfile, async (req, res) => {
-  const { Contract: contractRepo } = req.app.get("models");
+  const { Contract: contractRepo, Job: jobRepo } = req.app.get("models");
   const { profile } = req;
 
   const contracts = await contractRepo.findAll({
     where: {
       [Op.or]: [{ ContractorId: profile.id }, { ClientId: profile.id }],
-      [Op.and]: [{ status: { [Op.ne]: Contract.TERMINATED_STATUS } }],
+      [Op.and]: [{ status: { [Op.eq]: Contract.IN_PROGRESS_STATUS } }],
     },
-    include: Job,
+    include: {
+      model: jobRepo,
+      where: {
+        [Op.or]: [{ paid: false }, { paid: null }],
+      },
+    },
   });
 
   if (!contracts) return res.status(404).end();
 
   const unpaidJobs = contracts.reduce((accumulator, current) => {
-    const unpaid = current.jobs.filter((j) => !j.paid);
-
-    return [...accumulator, ...unpaid];
+    return [...accumulator, ...current.Jobs];
   }, []);
 
   res.json(unpaidJobs);
@@ -35,30 +39,37 @@ router.get("/unpaid", getProfile, async (req, res) => {
  * Pay for a job, a client can only pay if his balance >= the amount to pay. The amount should be moved from the client's balance to the contractor balance.
  * @returns Job
  */
-router.get("/:id/pay", getProfile, async (req, res) => {
-  const { Job: jobRepo, Profile: profileRepo } = req.app.get("models");
+router.post("/:id/pay", getProfile, async (req, res) => {
+  const {
+    Job: jobRepo,
+    Profile: profileRepo,
+    Contract: contractRepo,
+  } = req.app.get("models");
   const { profile } = req;
   const { id } = req.params;
 
-  const job = await jobRepo.findOne({ where: { id }, include: Contract });
-  const { contract } = job;
+  const job = await jobRepo.findOne({ where: { id }, include: contractRepo });
+  const { Contract: contract } = job;
   const amount = job.price;
 
   if (profile.balance < amount) return res.status(400).end();
 
-  if (contract.ClientId !== profile.id) return res.status(400).end();
+  if (contract.ClientId !== profile.id) return res.status(401).end();
 
-  if (job.paid) return res.status(400).end();
+  if (job.paid) return res.status(402).end();
 
   const contractorProfile = await profileRepo.findOne({
     where: { id: contract.ContractorId },
   });
 
-  const balanceClient = profile.balance - amount;
-  const balanceContractor = contractorProfile.balance + amount;
+  const balanceClient = mapMoneyDecimals(profile.balance - amount);
+  const balanceContractor = mapMoneyDecimals(
+    contractorProfile.balance + amount
+  );
 
   try {
-    const updated = await transaction(async (t) => {
+    const connection = req.app.get("sequelize");
+    const updated = await connection.transaction(async (t) => {
       await profileRepo.update(
         {
           balance: balanceClient,
@@ -77,7 +88,7 @@ router.get("/:id/pay", getProfile, async (req, res) => {
           transaction: t,
         }
       );
-      const updated = await jobRepo.update(
+      await jobRepo.update(
         {
           paid: true,
           paymentDate: new Date().toISOString(),
@@ -88,11 +99,14 @@ router.get("/:id/pay", getProfile, async (req, res) => {
         }
       );
 
-      return updated;
+      return job;
     });
 
     res.json(updated);
   } catch (error) {
+    console.error(error);
     return res.status(500).end();
   }
 });
+
+module.exports = router;
