@@ -14,8 +14,8 @@ router.get("/", getProfile, async (req, res) => {
 
   const contracts = await contractRepo.findAll({
     where: {
-      ContractorId: profile.id,
-      status: { [Op.ne]: Contract.TERMINATED_STATUS },
+      [Op.or]: [{ ContractorId: profile.id }, { ClientId: profile.id }],
+      [Op.and]: [{ status: { [Op.ne]: Contract.TERMINATED_STATUS } }],
     },
   });
 
@@ -33,7 +33,10 @@ router.get("/:id", getProfile, async (req, res) => {
   const { id } = req.params;
   const { profile } = req;
   const contract = await contractRepo.findOne({
-    where: { id, ContractorId: profile.id },
+    where: {
+      [Op.and]: [{ id }],
+      [Op.or]: [{ ContractorId: profile.id }, { ClientId: profile.id }],
+    },
   });
 
   if (!contract) return res.status(404).end();
