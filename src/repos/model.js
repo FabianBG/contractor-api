@@ -5,7 +5,10 @@ const sequelize = new Sequelize({
   storage: "./database.sqlite3",
 });
 
-class Profile extends Sequelize.Model {}
+class Profile extends Sequelize.Model {
+  static CLIENT_TYPE = "new";
+  static CONTRACTOR_TYPE = "contractor";
+}
 Profile.init(
   {
     firstName: {
@@ -24,7 +27,7 @@ Profile.init(
       type: Sequelize.DECIMAL(12, 2),
     },
     type: {
-      type: Sequelize.ENUM("client", "contractor"),
+      type: Sequelize.ENUM(Profile.CLIENT_TYPE, Profile.CONTRACTOR_TYPE),
     },
   },
   {
@@ -33,7 +36,11 @@ Profile.init(
   }
 );
 
-class Contract extends Sequelize.Model {}
+class Contract extends Sequelize.Model {
+  static NEW_STATUS = "new";
+  static IN_PROGRESS_STATUS = "in_progress";
+  static TERMINATED_STATUS = "terminated";
+}
 Contract.init(
   {
     terms: {
@@ -41,7 +48,11 @@ Contract.init(
       allowNull: false,
     },
     status: {
-      type: Sequelize.ENUM("new", "in_progress", "terminated"),
+      type: Sequelize.ENUM(
+        Contract.NEW_STATUS,
+        Contract.IN_PROGRESS_STATUS,
+        Contract.TERMINATED_STATUS
+      ),
     },
   },
   {

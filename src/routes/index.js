@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const contractRoutes = require("./contract.route");
+const contractRoutes = require("./contract.routes");
 const router = Router();
 
 router.use("/contracts", contractRoutes);
