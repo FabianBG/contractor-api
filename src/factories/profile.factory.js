@@ -5,7 +5,7 @@ function profileBuilder(custom) {
     firstName: faker.name.firstName(),
     lastName: faker.name.lastName(),
     profession: faker.commerce.department(),
-    balance: faker.finance.amount(),
+    balance: Number(faker.finance.amount()),
     type: "client",
     ...custom,
   };

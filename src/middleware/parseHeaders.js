@@ -5,7 +5,7 @@
 const parseHeaders = async (req, res, next) => {
   const { headers } = req;
 
-  req.profileId = headers["profile_id"];
+  req.profileId = headers.profile_id;
 
   next();
 };

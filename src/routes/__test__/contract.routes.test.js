@@ -5,19 +5,23 @@ const { Contract } = require("../../repos/model");
 const request = require("supertest");
 const server = app.listen();
 
-let clientProfile, contractorProfile1, contractorProfile2;
-
 beforeAll(async () => {
   jest.useFakeTimers();
-  const result = await getTestProfiles();
-  clientProfile = result.clientProfile;
-  contractorProfile1 = result.contractorProfile1;
-  contractorProfile2 = result.contractorProfile2;
 });
 
 afterAll(() => server.close());
 
 describe("Contract routes", () => {
+  let clientProfile, contractorProfile1, contractorProfile2;
+
+  beforeAll(async () => {
+    jest.useFakeTimers();
+    const result = await getTestProfiles();
+    clientProfile = result.clientProfile;
+    contractorProfile1 = result.contractorProfile1;
+    contractorProfile2 = result.contractorProfile2;
+  });
+
   describe("get all", () => {
     beforeAll(async () => {
       await Contract.create(
@@ -31,11 +35,20 @@ describe("Contract routes", () => {
         contractBuilder({
           ClientId: clientProfile.id,
           ContractorId: contractorProfile1.id,
+          status: Contract.TERMINATED_STATUS,
+        })
+      );
+
+      await Contract.create(
+        contractBuilder({
+          ClientId: clientProfile.id,
+          ContractorId: contractorProfile1.id,
+          status: Contract.IN_PROGRESS_STATUS,
         })
       );
     });
 
-    test("should get all the user's contracts based on the header profile_id", async () => {
+    test("should get all the user's not terminated contracts based on the header profile_id", async () => {
       const response = await request(server)
         .get("/contracts")
         .set("profile_id", clientProfile.id);

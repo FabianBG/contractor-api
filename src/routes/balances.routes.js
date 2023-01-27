@@ -1,5 +1,4 @@
 const { Router } = require("express");
-const { getProfile } = require("../middleware/getProfile");
 const { Contract } = require("../repos/model");
 const router = Router();
 const { Op } = require("sequelize");
@@ -9,14 +8,20 @@ const { mapMoneyDecimals } = require("../utils");
  * Deposits money into the the the balance of a client, a client can't deposit more than 25% his total of jobs to pay. (at the deposit moment)
  * @returns Profile
  */
-router.post("/deposit/:userId", getProfile, async (req, res) => {
+router.post("/deposit/:userId", async (req, res) => {
   const {
     Contract: contractRepo,
     Job: jobRepo,
     Profile: profileRepo,
   } = req.app.get("models");
-  const { profile } = req;
-  const { amount } = req.body;
+  const { userId } = req.params;
+  const profile = await profileRepo.findOne({ where: { id: userId } });
+
+  if (!profile) return res.status(404).end();
+
+  const amount = Number(req.body.amount);
+
+  if (!amount || amount < 1) return res.status(400).end();
 
   const contractsToPay = await contractRepo.findAll({
     where: {

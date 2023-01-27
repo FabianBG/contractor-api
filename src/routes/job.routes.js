@@ -16,7 +16,7 @@ router.get("/unpaid", getProfile, async (req, res) => {
   const contracts = await contractRepo.findAll({
     where: {
       [Op.or]: [{ ContractorId: profile.id }, { ClientId: profile.id }],
-      [Op.and]: [{ status: { [Op.eq]: Contract.IN_PROGRESS_STATUS } }],
+      [Op.and]: [{ status: { [Op.ne]: Contract.TERMINATED_STATUS } }],
     },
     include: {
       model: jobRepo,
@@ -48,15 +48,24 @@ router.post("/:id/pay", getProfile, async (req, res) => {
   const { profile } = req;
   const { id } = req.params;
 
-  const job = await jobRepo.findOne({ where: { id }, include: contractRepo });
+  const job = await jobRepo.findOne({
+    where: {
+      [Op.and]: [{ id }],
+      [Op.or]: [{ paid: false }, { paid: null }],
+    },
+    include: {
+      model: contractRepo,
+    },
+  });
+
+  if (!job) return res.status(404).end();
+
   const { Contract: contract } = job;
   const amount = job.price;
 
   if (profile.balance < amount) return res.status(400).end();
 
-  if (contract.ClientId !== profile.id) return res.status(401).end();
-
-  if (job.paid) return res.status(402).end();
+  if (contract.ClientId !== profile.id) return res.status(400).end();
 
   const contractorProfile = await profileRepo.findOne({
     where: { id: contract.ContractorId },
@@ -105,6 +114,7 @@ router.post("/:id/pay", getProfile, async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error(error);
+
     return res.status(500).end();
   }
 });

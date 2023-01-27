@@ -12,7 +12,7 @@
     "start": "nodemon ./src/server.js",
     "seed": "node ./scripts/seedDb.js",
     "lint": "npx eslint ./src/* ./scripts/*",
-    "test": "Node_ENV=test npx jest"
+    "test": "NODE_ENV=test npx jest --coverage"
   },
   "devDependencies": {
     "concurrently": "^7.6.0",
